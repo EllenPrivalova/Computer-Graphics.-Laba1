@@ -14,7 +14,7 @@ struct Triangle {
 	Vector2f top;
 };
 
-void changeLineColor(Color& color) {
+void changeColor(Color& color) {
 	color.r = rand() % 256;
 	color.g = rand() % 256;
 	color.b = rand() % 256;
@@ -190,25 +190,25 @@ int main() {
 		// Проверка на выход за правый край
 		if (triangle.right.x + 1 >= image.getSize().x) {
 			direction.x *= -1;
-			changeLineColor(lineColor);
+			changeColor(fillColor);
 		}
 
 		//Проверка на выход за левый край
 		if (triangle.left.x - 1 < 0) {
 			direction.x *= -1;
-			changeLineColor(lineColor);
+			changeColor(fillColor);
 		}
 
 		// Проверка на выход на нижний край
 		if (triangle.left.y + 1 >= image.getSize().y) {
 			direction.y *= -1;
-			changeLineColor(lineColor);
+			changeColor(fillColor);
 		}
 
 		// Проверка на выход за верхний край
 		if (triangle.top.y - 1 < 0) {
 			direction.y *= -1;
-			changeLineColor(lineColor);
+			changeColor(fillColor);
 		}
 		
 		// Перемещение при столкновении
