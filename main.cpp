@@ -13,128 +13,140 @@ using namespace std;
 
 class AdvancedTriangle {
 private:
-	ConvexShape triangle;
-	Vector2f velocity;
-	Color fillColor;
-	Color outlineColor;
-	
-	vector<Vector2f> trajectoryPoints; // Ломаная траектория
-	size_t currentPointIndex; // Индекс текущей точки на траектории
+    ConvexShape triangle;
+    FloatRect orthogonalRect;
+    Vector2f velocity;
+    Color fillColor;
+    Color outlineColor;
+    float mass;
 
 public:
-	AdvancedTriangle(float side, Vector2f initialPosition, Vector2f initialVelocity, vector<Vector2f>& points) {
-		// Задаем форму треугольника
-		triangle.setPointCount(3);
-		triangle.setPoint(0, Vector2f(0, 0));
-		triangle.setPoint(1, Vector2f(side, 0));
-		triangle.setPoint(2, Vector2f(side / 2, -side * sqrt(3) / 2));
+    AdvancedTriangle(float side, Vector2f initialPosition, Vector2f initialVelocity, float mass) {
+        // Задаем форму треугольника
+        triangle.setPointCount(3);
+        triangle.setPoint(0, Vector2f(0, 0));
+        triangle.setPoint(1, Vector2f(side, 0));
+        triangle.setPoint(2, Vector2f(side / 2, -side * sqrt(3) / 2));
 
-		triangle.setPosition(initialPosition);
-		velocity = initialVelocity;
+        triangle.setPosition(initialPosition);
+        velocity = initialVelocity;
 
-		fillColor = Color(40, 40, 40);
-		outlineColor = Color::Blue;
+        this->mass = mass;
 
-		triangle.setFillColor(fillColor);
-		triangle.setOutlineColor(outlineColor);
-		triangle.setOutlineThickness(1);
+        fillColor = Color(40, 40, 40);
+        outlineColor = Color::Blue;
 
-		trajectoryPoints = points;
-		currentPointIndex = 0;
+        triangle.setFillColor(fillColor);
+        triangle.setOutlineColor(outlineColor);
+        triangle.setOutlineThickness(1);
 
-		// Начальная скорость направлена к первой точке траектории
-		updateVelocityTowardsNextPoint();
-	}
+        updateOrthogonalRect();
+    }
 
-	void updateVelocityTowardsNextPoint() {
-		if (currentPointIndex < trajectoryPoints.size()) {
-			Vector2f targetPoint = trajectoryPoints[currentPointIndex];
-			Vector2f direction = targetPoint - triangle.getPosition();
+    void updateOrthogonalRect() {
+        // Обновление ограничивающего прямоугольника AABB
+        sf::Vector2f position = triangle.getPosition();
+        float size = triangle.getPoint(1).x; // Длина стороны треугольника
+        orthogonalRect = FloatRect(position.x, position.y, size, size * sqrt(3) / 2);
+    }
 
-			// Нормализация вектора направления для получения единичного вектора
-			float length = sqrt(direction.x * direction.x + direction.y * direction.y);
-			if (length != 0) {
-				velocity = direction / length;
-			}
-		}
-	}
+    bool checkCollision(AdvancedTriangle& other) {
+        return orthogonalRect.intersects(other.orthogonalRect);
+    }
 
-	void updatePosition() {
-		// Обновление позиции
-		Vector2f position = triangle.getPosition();
-		position += velocity;
+    void resolveCollision(AdvancedTriangle& other) {
+        // Закон сохранения импульса
+        Vector2f newVelocity1 = velocity;
+        Vector2f newVelocity2 = other.velocity;
 
-		// Проверка достижения текущей точки траектории
-		Vector2f targetPoint = trajectoryPoints[currentPointIndex];
-		if (abs(position.x - targetPoint.x) < 5.0f && abs(position.y - targetPoint.y) < 5.0f) {
-			// Перемещаемся к следующей точке
-			currentPointIndex = (currentPointIndex + 1) % trajectoryPoints.size();
-			updateVelocityTowardsNextPoint();
-		}
+        float totalMass = mass + other.mass;
+        newVelocity1 = (velocity * (mass - other.mass) + other.velocity * (2 * other.mass)) / totalMass;
+        newVelocity2 = (other.velocity * (other.mass - mass) + velocity * (2 * mass)) / totalMass;
 
-		triangle.setPosition(position);
-	}
+        // Обновляем скорости после столкновения
+        velocity = newVelocity1;
+        other.velocity = newVelocity2;
+    }
 
-	void changeColor(Color& color) {
-		fillColor = Color(rand() % 256, rand() % 256, rand() % 256);
-		triangle.setFillColor(fillColor);
-	}
+    void updatePosition(RenderWindow& window) {
+        // Обновление позиции
+        Vector2f position = triangle.getPosition();
+        position += velocity;
 
-	void draw(RenderWindow& window) {
-		window.draw(triangle);
-	}
+        // Проверка столкновения с границами экрана
+        if (position.x <= 0 || position.x + triangle.getPoint(1).x >= window.getSize().x) {
+            velocity.x = -velocity.x;
+            changeColor(fillColor);
+        }
 
-	void erase(RenderWindow& window, Color& backgroundColor) {
-		triangle.setOutlineThickness(3);
-		triangle.setFillColor(backgroundColor);
-		triangle.setOutlineColor(backgroundColor);
+        if (position.y + triangle.getPoint(2).y <= 0 || position.y >= window.getSize().y) {
+            velocity.y = -velocity.y;
+            changeColor(fillColor);
+        }
 
-		draw(window);
+        triangle.setPosition(position);
+        updateOrthogonalRect();
+    }
 
-		triangle.setOutlineThickness(1);
-		triangle.setFillColor(fillColor);
-		triangle.setOutlineColor(outlineColor);
-	}
+    void changeColor(Color& color) {
+        fillColor = Color(rand() % 256, rand() % 256, rand() % 256);
+        triangle.setFillColor(fillColor);
+    }
+
+    void draw(RenderWindow& window) {
+        window.draw(triangle);
+    }
+
+    void erase(RenderWindow& window, Color& backgroundColor) {
+        triangle.setOutlineThickness(3);
+        triangle.setFillColor(backgroundColor);
+        triangle.setOutlineColor(backgroundColor);
+
+        draw(window);
+
+        triangle.setOutlineThickness(1);
+        triangle.setFillColor(fillColor);
+        triangle.setOutlineColor(outlineColor);
+    }
 };
 
 int main() {
-	// Создание окна
-	RenderWindow window(VideoMode(800, 600), "Laba1");
+    // Создание окна
+    RenderWindow window(VideoMode(800, 600), "Laba1");
 
-	// Ломаная траектория
-	vector<Vector2f> trajectoryPoints = {
-		Vector2f(100, 100),
-		Vector2f(700, 100),
-		Vector2f(400, 500),
-		Vector2f(100, 500)
-	};
+    AdvancedTriangle advancedTriangle1(100, Vector2f(400, 300), Vector2f(1.0f, 1.5f), 1.0f);
+    AdvancedTriangle advancedTriangle2(100, Vector2f(500, 400), Vector2f(-1.5f, -1.f), 1.0f);
 
-	// Создаем треугольник
-	AdvancedTriangle advancedTriangle(100, Vector2f(400, 300), Vector2f(-1.f, 1.f), trajectoryPoints);
-	
-	Color backgroundColor = Color::Black;
+    Color backgroundColor = Color::Black;
 
-	Clock clock;
-	float t = 1.f / FRAMERATE;
+    Clock clock;
+    float t = 1.f / FRAMERATE;
 
-	while (window.isOpen()) {
-		Event event;
-		while (window.pollEvent(event)) {
-			if (event.type == Event::Closed)
-				window.close();
-		}
+    while (window.isOpen()) {
+        Event event;
+        while (window.pollEvent(event)) {
+            if (event.type == Event::Closed)
+                window.close();
+        }
 
-		advancedTriangle.erase(window, backgroundColor);
+        advancedTriangle1.erase(window, backgroundColor);
+        advancedTriangle2.erase(window, backgroundColor);
 
-		advancedTriangle.updatePosition();
+        advancedTriangle1.updatePosition(window);
+        advancedTriangle2.updatePosition(window);
 
-		advancedTriangle.draw(window);
+        if (advancedTriangle1.checkCollision(advancedTriangle2)) {
+            advancedTriangle1.resolveCollision(advancedTriangle2);
+        }
 
-		window.display();
+        advancedTriangle1.draw(window);
+        advancedTriangle2.draw(window);
 
-		auto elapsed = clock.restart();
-		sleep(seconds(t - elapsed.asSeconds()));
-	}
+        window.display();
 
-	return 0;
+        auto elapsed = clock.restart();
+        sleep(seconds(t - elapsed.asSeconds()));
+    }
+
+    return 0;
 }
