@@ -14,14 +14,18 @@ using namespace std;
 class AdvancedTriangle {
 private:
     ConvexShape triangle;
-    FloatRect orthogonalRect;
     Vector2f velocity;
     Color fillColor;
     Color outlineColor;
-    float mass;
+
+    // Параметры синусоиды
+    float amplitude;
+    float period;
+    float timeElapsed;
 
 public:
-    AdvancedTriangle(float side, Vector2f initialPosition, Vector2f initialVelocity, float mass) {
+    AdvancedTriangle(float side, Vector2f initialPosition, float initialVelocityX, float amplitude, float period)
+        : amplitude(amplitude), period(period), timeElapsed(0.0f) {
         // Задаем форму треугольника
         triangle.setPointCount(3);
         triangle.setPoint(0, Vector2f(0, 0));
@@ -29,9 +33,7 @@ public:
         triangle.setPoint(2, Vector2f(side / 2, -side * sqrt(3) / 2));
 
         triangle.setPosition(initialPosition);
-        velocity = initialVelocity;
-
-        this->mass = mass;
+        //velocity = initialVelocity;
 
         fillColor = Color(40, 40, 40);
         outlineColor = Color::Blue;
@@ -40,52 +42,28 @@ public:
         triangle.setOutlineColor(outlineColor);
         triangle.setOutlineThickness(1);
 
-        updateOrthogonalRect();
+        velocity.x = initialVelocityX;
+        velocity.y = 0.0f;
     }
 
-    void updateOrthogonalRect() {
-        // Обновление ограничивающего прямоугольника AABB
-        sf::Vector2f position = triangle.getPosition();
-        float size = triangle.getPoint(1).x; // Длина стороны треугольника
-        orthogonalRect = FloatRect(position.x, position.y, size, size * sqrt(3) / 2);
-    }
+    void updatePosition(float deltaTime, RenderWindow& window) {
+        // Обновляем время
+        timeElapsed += deltaTime;
 
-    bool checkCollision(AdvancedTriangle& other) {
-        return orthogonalRect.intersects(other.orthogonalRect);
-    }
-
-    void resolveCollision(AdvancedTriangle& other) {
-        // Закон сохранения импульса
-        Vector2f newVelocity1 = velocity;
-        Vector2f newVelocity2 = other.velocity;
-
-        float totalMass = mass + other.mass;
-        newVelocity1 = (velocity * (mass - other.mass) + other.velocity * (2 * other.mass)) / totalMass;
-        newVelocity2 = (other.velocity * (other.mass - mass) + velocity * (2 * mass)) / totalMass;
-
-        // Обновляем скорости после столкновения
-        velocity = newVelocity1;
-        other.velocity = newVelocity2;
-    }
-
-    void updatePosition(RenderWindow& window) {
-        // Обновление позиции
+        // Обновляем позицию по оси X
         Vector2f position = triangle.getPosition();
-        position += velocity;
+        position.x += velocity.x;
 
-        // Проверка столкновения с границами экрана
+        // Вычисляем новое положение по оси Y на основе синусоиды
+        position.y = (window.getSize().y / 2) + amplitude * sin(2 * 3.14159f * timeElapsed / period);
+
+        // Проверка столкновения с границами экрана по оси X
         if (position.x <= 0 || position.x + triangle.getPoint(1).x >= window.getSize().x) {
-            velocity.x = -velocity.x;
-            changeColor(fillColor);
-        }
-
-        if (position.y + triangle.getPoint(2).y <= 0 || position.y >= window.getSize().y) {
-            velocity.y = -velocity.y;
+            velocity.x = -velocity.x; // Отражение по оси X
             changeColor(fillColor);
         }
 
         triangle.setPosition(position);
-        updateOrthogonalRect();
     }
 
     void changeColor(Color& color) {
@@ -98,7 +76,7 @@ public:
     }
 
     void erase(RenderWindow& window, Color& backgroundColor) {
-        triangle.setOutlineThickness(3);
+        triangle.setOutlineThickness(10);
         triangle.setFillColor(backgroundColor);
         triangle.setOutlineColor(backgroundColor);
 
@@ -114,12 +92,17 @@ int main() {
     // Создание окна
     RenderWindow window(VideoMode(800, 600), "Laba1");
 
-    AdvancedTriangle advancedTriangle1(100, Vector2f(400, 300), Vector2f(1.0f, 1.5f), 1.0f);
-    AdvancedTriangle advancedTriangle2(100, Vector2f(500, 400), Vector2f(-1.5f, -1.f), 1.0f);
+    // Параметры синусоиды
+    float amplitude = 100.0f; // Амплитуда синусоиды
+    float period = 2.0f; // Период синусоиды (в секундах)
+
+    // Создаем треугольник, который движется по синусоиде
+    AdvancedTriangle advancedTriangle(100, Vector2f(400, 300), 0.7f, amplitude, period);
 
     Color backgroundColor = Color::Black;
 
     Clock clock;
+    Clock time;
     float t = 1.f / FRAMERATE;
 
     while (window.isOpen()) {
@@ -129,18 +112,11 @@ int main() {
                 window.close();
         }
 
-        advancedTriangle1.erase(window, backgroundColor);
-        advancedTriangle2.erase(window, backgroundColor);
+        advancedTriangle.erase(window, backgroundColor);
 
-        advancedTriangle1.updatePosition(window);
-        advancedTriangle2.updatePosition(window);
+        advancedTriangle.updatePosition(time.restart().asSeconds(), window);
 
-        if (advancedTriangle1.checkCollision(advancedTriangle2)) {
-            advancedTriangle1.resolveCollision(advancedTriangle2);
-        }
-
-        advancedTriangle1.draw(window);
-        advancedTriangle2.draw(window);
+        advancedTriangle.draw(window);
 
         window.display();
 
