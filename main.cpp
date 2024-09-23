@@ -2,6 +2,7 @@
 #include <ctime>
 #include <cstdlib>
 #include <vector>
+#include <deque>
 #include <utility>
 #include "SFML/Graphics.hpp"
 #include "SFML/Audio.hpp"
@@ -18,14 +19,11 @@ private:
     Color fillColor;
     Color outlineColor;
 
-    // Параметры синусоиды
-    float amplitude;
-    float period;
-    float timeElapsed;
+    deque<ConvexShape> trail; // Очередь для хранения следа
+    int maxTrailSize; // Максимальный размер следа
 
 public:
-    AdvancedTriangle(float side, Vector2f initialPosition, float initialVelocityX, float amplitude, float period)
-        : amplitude(amplitude), period(period), timeElapsed(0.0f) {
+    AdvancedTriangle(float side, Vector2f initialPosition, Vector2f initialVelocity) {
         // Задаем форму треугольника
         triangle.setPointCount(3);
         triangle.setPoint(0, Vector2f(0, 0));
@@ -33,7 +31,7 @@ public:
         triangle.setPoint(2, Vector2f(side / 2, -side * sqrt(3) / 2));
 
         triangle.setPosition(initialPosition);
-        //velocity = initialVelocity;
+        velocity = initialVelocity;
 
         fillColor = Color(40, 40, 40);
         outlineColor = Color::Blue;
@@ -42,24 +40,30 @@ public:
         triangle.setOutlineColor(outlineColor);
         triangle.setOutlineThickness(1);
 
-        velocity.x = initialVelocityX;
-        velocity.y = 0.0f;
+        maxTrailSize = 10; // Количество кадров следа
     }
 
-    void updatePosition(float deltaTime, RenderWindow& window) {
-        // Обновляем время
-        timeElapsed += deltaTime;
+    void addToTrail() {
+        // Копируем текущий треугольник и добавляем его в очередь следа
+        ConvexShape trailTriangle = triangle;
+        trail.push_front(trailTriangle);
+    }
 
-        // Обновляем позицию по оси X
+    void updatePosition(RenderWindow& window) {
+        // Сохраняем текущее положение в след
+        addToTrail();
+
+        // Обновление позиции
         Vector2f position = triangle.getPosition();
-        position.x += velocity.x;
+        position += velocity;
 
-        // Вычисляем новое положение по оси Y на основе синусоиды
-        position.y = (window.getSize().y / 2) + amplitude * sin(2 * 3.14159f * timeElapsed / period);
-
-        // Проверка столкновения с границами экрана по оси X
-        if (position.x <= 0 || position.x + triangle.getPoint(1).x >= window.getSize().x) {
+        // Проверка столкновения с границами экрана
+        if (position.x <= 0 || position.x + triangle.getPoint(2).x >= window.getSize().x) {
             velocity.x = -velocity.x; // Отражение по оси X
+            changeColor(fillColor);
+        }
+        if (position.y + triangle.getPoint(1).y <= 0 || position.y >= window.getSize().y) {
+            velocity.y = -velocity.y; // Отражение по оси Y
             changeColor(fillColor);
         }
 
@@ -69,6 +73,30 @@ public:
     void changeColor(Color& color) {
         fillColor = Color(rand() % 256, rand() % 256, rand() % 256);
         triangle.setFillColor(fillColor);
+    }
+
+    void drawTrail(RenderWindow& window) {
+        if (trail.size() > maxTrailSize) {
+            auto lastTrail = trail.back();
+            trail.pop_back();
+
+            lastTrail.setFillColor(Color::Black);
+            lastTrail.setOutlineColor(Color::Black);
+            lastTrail.setOutlineThickness(10);
+            window.draw(lastTrail);
+        }
+
+        // Проходим по всем элементам следа и отрисовываем их
+        int alphaStep = 255 / maxTrailSize;
+        for (size_t i = 0; i < trail.size(); ++i) {
+            // Уменьшаем прозрачность для каждого последующего треугольника в следе
+            Color trailColor = trail[i].getFillColor();
+            trailColor.a = max(0, 255 - (int)(i) * alphaStep); // Плавное уменьшение прозрачности
+            trail[i].setFillColor(trailColor);
+            trail[i].setOutlineColor(trailColor);
+
+            window.draw(trail[i]);
+        }
     }
 
     void draw(RenderWindow& window) {
@@ -92,13 +120,8 @@ int main() {
     // Создание окна
     RenderWindow window(VideoMode(800, 600), "Laba1");
 
-    // Параметры синусоиды
-    float amplitude = 100.0f; // Амплитуда синусоиды
-    float period = 2.0f; // Период синусоиды (в секундах)
-
-    // Создаем треугольник, который движется по синусоиде
-    AdvancedTriangle advancedTriangle(100, Vector2f(400, 300), 0.7f, amplitude, period);
-
+    AdvancedTriangle advancedTriangle(100, Vector2f(400, 300), Vector2f(-1.f, 1.f));
+    
     Color backgroundColor = Color::Black;
 
     Clock clock;
@@ -114,8 +137,12 @@ int main() {
 
         advancedTriangle.erase(window, backgroundColor);
 
-        advancedTriangle.updatePosition(time.restart().asSeconds(), window);
+        advancedTriangle.updatePosition(window);
 
+        // Сначала рисуем след
+        advancedTriangle.drawTrail(window);
+
+        // Затем рисуем сам треугольник
         advancedTriangle.draw(window);
 
         window.display();
