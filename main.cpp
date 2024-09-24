@@ -191,7 +191,7 @@ private:
 };
 
 int main() {
-    RenderWindow window(VideoMode(800, 600), "Laba1");
+    RenderWindow window(VideoMode(1000, 600), "Laba1", Style::Fullscreen);
 
     AdvancedTriangle advancedTriangle(100, Vector2f(400, 300), Vector2f(-1.f, 1.f));
     Color backgroundColor = Color::Black;
