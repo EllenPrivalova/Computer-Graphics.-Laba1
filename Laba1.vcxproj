@@ -130,7 +130,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="brokenLine.cpp" />
+    <ClCompile Include="gear.cpp" />
+    <ClCompile Include="menu.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="orthogonalRect.cpp" />
+    <ClCompile Include="polygon.cpp" />
+    <ClCompile Include="sinusoida.cpp" />
+    <ClCompile Include="track.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -21,14 +21,16 @@
 //	Color fillColor;
 //	Color outlineColor;
 //
+//	vector<Vector2f> trajectoryPoints; // Ломаная траектория
+//	size_t currentPointIndex; // Индекс текущей точки на траектории
+//
 //public:
-//	AdvancedTriangle(float side, Vector2f initialPosition, float initialVelocityX, float k = 1.f, float b = 0.f) {
+//	AdvancedTriangle(float side, Vector2f initialPosition, float initialVelocityX, vector<Vector2f>& points, float k = 1.f, float b = 0.f) {
 //		// Задаем форму треугольника
 //		triangle.setPointCount(3);
 //		triangle.setPoint(0, Vector2f(0, 0));
 //		triangle.setPoint(1, Vector2f(side, 0));
 //		triangle.setPoint(2, Vector2f(side / 2, -side * sqrt(3) / 2));
-//
 //		triangle.setPosition(initialPosition);
 //
 //		velocity.x = initialVelocityX;
@@ -40,22 +42,38 @@
 //		triangle.setFillColor(fillColor);
 //		triangle.setOutlineColor(outlineColor);
 //		triangle.setOutlineThickness(1);
+//
+//		trajectoryPoints = points;
+//		currentPointIndex = 0;
+//
+//		// Начальная скорость направлена к первой точке траектории
+//		updateVelocityTowardsNextPoint();
 //	}
 //
-//	void updatePosition(RenderWindow& window) {
+//	void updateVelocityTowardsNextPoint() {
+//		if (currentPointIndex < trajectoryPoints.size()) {
+//			Vector2f targetPoint = trajectoryPoints[currentPointIndex];
+//			Vector2f direction = targetPoint - triangle.getPosition();
+//
+//			// Нормализация вектора направления для получения единичного вектора
+//			float length = sqrt(direction.x * direction.x + direction.y * direction.y);
+//			if (length != 0) {
+//				velocity = direction / length;
+//			}
+//		}
+//	}
+//
+//	void updatePosition() {
 //		// Обновление позиции
 //		Vector2f position = triangle.getPosition();
 //		position += velocity;
 //
-//		// Проверка столкновения с границами экрана
-//		if (position.x <= 0 || position.x + triangle.getPoint(1).x >= window.getSize().x) {
-//			velocity.x = -velocity.x;
-//			changeColor(fillColor);
-//		}
-//
-//		if (position.y + triangle.getPoint(2).y <= 0 || position.y >= window.getSize().y) {
-//			velocity.y = -velocity.y;
-//			changeColor(fillColor);
+//		// Проверка достижения текущей точки траектории
+//		Vector2f targetPoint = trajectoryPoints[currentPointIndex];
+//		if (abs(position.x - targetPoint.x) < 5.0f && abs(position.y - targetPoint.y) < 5.0f) {
+//			// Перемещаемся к следующей точке
+//			currentPointIndex = (currentPointIndex + 1) % trajectoryPoints.size();
+//			updateVelocityTowardsNextPoint();
 //		}
 //
 //		triangle.setPosition(position);
@@ -87,7 +105,16 @@
 //	// Создание окна
 //	RenderWindow window(VideoMode(1000, 600), "Laba1");
 //
-//	AdvancedTriangle advancedTriangle(100, Vector2f(500, 300), -1.f, 1.f, 2.f);
+//	// Ломаная траектория
+//	vector<Vector2f> trajectoryPoints = {
+//		Vector2f(100, 100),
+//		Vector2f(700, 100),
+//		Vector2f(400, 500),
+//		Vector2f(100, 500)
+//	};
+//
+//	// Создаем треугольник
+//	AdvancedTriangle advancedTriangle(100, Vector2f(500, 300), -1.f, trajectoryPoints, 1.f, 2.f);
 //
 //	Color backgroundColor = Color::Black;
 //
@@ -103,7 +130,7 @@
 //
 //		advancedTriangle.erase(window, backgroundColor);
 //
-//		advancedTriangle.updatePosition(window);
+//		advancedTriangle.updatePosition();
 //
 //		advancedTriangle.draw(window);
 //
